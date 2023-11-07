@@ -1,0 +1,86 @@
+!pip install nltk
+import gensim
+import nltk
+from gensim import corpora
+from gensim.models import LdaModel
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+import string
+
+nltk.download("punkt")
+nltk.download("stopwords")
+nltk.download('wordnet')
+
+
+# Sample text data (you can replace this with your own dataset)
+documents = [
+    "Natural language processing is a subfield of artificial intelligence.",
+    "Machine learning plays a crucial role in NLP.",
+    "Topic modeling is a technique used in NLP to identify main topics in text.",
+    "LDA is a popular algorithm for topic modeling.",
+]
+
+# Tokenization, stopword removal, and lemmatization
+def preprocess_text(text):
+    # Tokenization
+    tokens = word_tokenize(text)
+
+    # Remove stopwords and punctuation
+    stop_words = set(stopwords.words("english"))
+    tokens = [word for word in tokens if word not in stop_words and word not in string.punctuation]
+
+    # Lemmatization
+    lemmatizer = WordNetLemmatizer()
+    tokens = [lemmatizer.lemmatize(word) for word in tokens]
+
+    return tokens
+
+# Preprocess the documents
+processed_documents = [preprocess_text(doc) for doc in documents]
+
+# Create a dictionary and document-term matrix
+dictionary = corpora.Dictionary(processed_documents)
+corpus = [dictionary.doc2bow(doc) for doc in processed_documents]
+
+# Build the LDA model
+num_topics = 2
+lda_model = LdaModel(corpus, num_topics=num_topics, id2word=dictionary, passes=15)
+
+# Print the topics and their top words
+topics = lda_model.print_topics()
+for topic in topics:
+    print(topic)
+
+# Function to get the main topic of a document
+def get_main_topic(text):
+    new_doc_bow = dictionary.doc2bow(preprocess_text(text))
+    topic_distribution = lda_model.get_document_topics(new_doc_bow)
+    main_topic = max(topic_distribution, key=lambda x: x[1])  # Find the topic with the highest probability
+    return main_topic
+
+# Function to get documents associated with the main topic
+def get_documents_for_topic(topic_id):
+    topic_documents = []
+    for i, doc in enumerate(documents):
+        new_doc_bow = dictionary.doc2bow(preprocess_text(doc))
+        topic_distribution = lda_model.get_document_topics(new_doc_bow)
+        top_topic = max(topic_distribution, key=lambda x: x[1])
+        if top_topic[0] == topic_id:
+            topic_documents.append(doc)
+    return topic_documents
+
+# Inference on a new document
+new_document = "NLP and machine learning are powerful technologies."
+main_topic = get_main_topic(new_document)
+main_topic_id, main_topic_prob = main_topic
+
+print("Main topic ID:", main_topic_id)
+print("Main topic probability:", main_topic_prob)
+print("Main topic words:", lda_model.print_topic(main_topic_id))  # Print the top words for the main topic
+
+# Get documents associated with the main topic
+main_topic_documents = get_documents_for_topic(main_topic_id)
+print("Documents associated with the main topic:")
+for doc in main_topic_documents:
+    print(doc)
